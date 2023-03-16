@@ -11,6 +11,7 @@
           <div class="mt-1 relative rounded-md shadow-md">
             <input
               v-model="inputValue"
+              @focus="showAutocomplete()"
               type="text"
               name="wallet"
               id="wallet"
@@ -18,10 +19,14 @@
               placeholder="Например DOGE"
             />
           </div>
-          <div v-if="show" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
-            <span
-            class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-              BTC
+          
+          <div class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
+            <span 
+            @click="addNewTicker(coin)"
+            v-for="coin in filteredCoins"
+            :key="coin.Id"
+            class="coin inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
+              {{ coin.name }}
             </span>
           </div>
           <div v-if="recurringTicker" class="text-sm text-red-600">Такой тикер уже добавлен</div>
@@ -138,7 +143,7 @@
 </template>
 
 <script>
-
+import axios from 'axios';
 export default {
      name: 'App',
      data(){
@@ -148,10 +153,18 @@ export default {
           sell: null,
           graphics: [],
           recurringTicker: null,
-          show: false
+          show: false,
+          coinsList: []
         }
      },
      methods: {
+        showAutocomplete() {
+          if(this.inputValue.length >= 1){
+            this.show = true
+          }else{
+            this.show = false
+          }
+        },
         addTicker() {
           const newTicker = {
             id: Math.random(),
@@ -163,7 +176,7 @@ export default {
               const f = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${newTicker.name}&tsyms=USD&api_key=6493e6e6aa0b75bdabeccd73612e6871a97fb374bfab3dab07f1ab387dbb099d`
               );
               const data = await f.json();
-    
+              
               this.tickers.find(item => item.name === newTicker.name).price = 
               data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
 
@@ -195,18 +208,66 @@ export default {
           this.sell = ticker;
           this.graphics = [];
         },
-        computed: {
-          filteredCoins() {
-            if (this.inputValue.length >= 3){
-              return this.searchCoins.filter(item => {
-              return item.title.toLowerCase().indexOf(this.search.toLowerCase()) > -1})
+        addNewTicker(coin) {
+            const newTicker = {
+              id: Math.random(),
+              name: coin.name,
+              price: '-'
+            };
+            this.tickers.push(newTicker);
+            setInterval(async () => {
+                const f = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${newTicker.name}&tsyms=USD&api_key=6493e6e6aa0b75bdabeccd73612e6871a97fb374bfab3dab07f1ab387dbb099d`
+                );
+                const data = await f.json();
+                
+                this.tickers.find(item => item.name === newTicker.name).price = 
+                data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+
+                if(this.sell?.name === newTicker.name){
+                  this.graphics.push(data.USD);
+                }
+
+                if(!this.coinsList.find(item => item.name.toUpperCase().toLowerCase() === newTicker.name && this.inputValue)){
+                  this.recurringTicker = false;
+                  
+                }else{
+                  this.recurringTicker = true;
+                  document.querySelector('.my-btn').disabled = false;
+                }
+              }, 1000)
+            this.inputValue = '';
+        }
+      },
+      computed:{
+        async allCoins() {
+            const response = await axios.get('https://min-api.cryptocompare.com/data/all/coinlist')
+            const res = response.data.Data;
+
+            this.coinsList = Object.entries(res).map(([name, obj]) => ({name, ...obj}));
+            
+            console.log(this.coinsList);
+        },
+        filteredCoins(){
+            this.allCoins;
+            
+            let matches = 0;
+            if (this.inputValue.length >= 1){
+              console.log(this.coinsList)
+              
+              return this.coinsList.filter(item => {
+                return item.name.toLowerCase().indexOf(this.inputValue.toLowerCase()) > -1 && matches < 5 && matches++;
+              })
             }else{
               return null
             }
           }
       }
+          // mounted() {
+          //   this.filteredCoins();
+          // }
     }
-}
+    
+
 
 </script>
 
