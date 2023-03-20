@@ -11,7 +11,8 @@
           <div class="mt-1 relative rounded-md shadow-md">
             <input
               v-model="inputValue"
-              @focus="showAutocomplete()"
+              @focus="this.show = true"
+              
               type="text"
               name="wallet"
               id="wallet"
@@ -20,7 +21,7 @@
             />
           </div>
           
-          <div class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
+          <div v-if="show" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
             <span 
             @click="addNewTicker(coin)"
             v-for="coin in filteredCoins"
@@ -153,34 +154,31 @@ export default {
           sell: null,
           graphics: [],
           recurringTicker: null,
-          show: false,
+          show: null,
           coinsList: []
         }
      },
+     created() {
+      const tickersData = localStorage.getItem('cryptonomicon-list');
+
+      if(tickersData) {
+        this.tickers = JSON.parse(tickersData);
+        this.tickers.forEach(ticker => {
+          this.subscribeToUpdates(ticker.name);
+        })
+      }
+     },
      methods: {
-        showAutocomplete() {
-          if(this.inputValue.length >= 1){
-            this.show = true
-          }else{
-            this.show = false
-          }
-        },
-        addTicker() {
-          const newTicker = {
-            id: Math.random(),
-            name: this.inputValue,
-            price: '-'
-          };
-          this.tickers.push(newTicker);
-          setInterval(async () => {
-              const f = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${newTicker.name}&tsyms=USD&api_key=6493e6e6aa0b75bdabeccd73612e6871a97fb374bfab3dab07f1ab387dbb099d`
+      subscribeToUpdates(tickerName) {
+        setInterval(async () => {
+              const f = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=6493e6e6aa0b75bdabeccd73612e6871a97fb374bfab3dab07f1ab387dbb099d`
               );
               const data = await f.json();
               
-              this.tickers.find(item => item.name === newTicker.name).price = 
+              this.tickers.find(item => item.name === tickerName).price = 
               data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
 
-              if(this.sell?.name === newTicker.name){
+              if(this.sell?.name === tickerName){
                 this.graphics.push(data.USD);
               }
 
@@ -192,6 +190,18 @@ export default {
                 document.querySelector('.my-btn').disabled = true;
               }
             }, 3000)
+      },
+        addTicker() {
+          const newTicker = {
+            id: Math.random(),
+            name: this.inputValue,
+            price: '-'
+          };
+          this.tickers.push(newTicker);
+
+          localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
+          this.subscribeToUpdates(newTicker.name);
+          
           this.inputValue = '';
         },
         delTicker(ticker) {
@@ -227,15 +237,17 @@ export default {
                   this.graphics.push(data.USD);
                 }
 
-                if(!this.coinsList.find(item => item.name.toUpperCase().toLowerCase() === newTicker.name && this.inputValue)){
-                  this.recurringTicker = false;
+                // if(!this.tickers.find(item => item.name.toUpperCase().toLowerCase() === newTicker.name) &&
+                // !this.coinsList.find(item => item.name === newTicker.name)){
+                //   this.recurringTicker = false;
                   
-                }else{
-                  this.recurringTicker = true;
-                  document.querySelector('.my-btn').disabled = false;
-                }
+                // }else{
+                //   this.recurringTicker = true;
+                //   document.querySelector('.my-btn').disabled = false;
+                // }
               }, 1000)
             this.inputValue = '';
+            this.show = false;
         }
       },
       computed:{
@@ -253,7 +265,6 @@ export default {
             let matches = 0;
             if (this.inputValue.length >= 1){
               console.log(this.coinsList)
-              
               return this.coinsList.filter(item => {
                 return item.name.toLowerCase().indexOf(this.inputValue.toLowerCase()) > -1 && matches < 5 && matches++;
               })
