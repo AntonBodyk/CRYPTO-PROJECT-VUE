@@ -72,7 +72,7 @@
           v-for="ticker of filteredTickers()"
           :key="ticker.id"
           :class="{
-            'border-4': sell === ticker
+            'border-4': selectedTicker === ticker
           }"
           @click="checkGraphics(ticker)"
           class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
@@ -108,9 +108,9 @@
       <hr class="w-full border-t border-gray-600 my-4" />
     </template>
 
-    <section v-if="sell" class="relative">
+    <section v-if="selectedTicker" class="relative">
       <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-        {{ sell.name }} - USD
+        {{ selectedTicker.name }} - USD
       </h3>
       <div class="flex items-end border-gray-600 border-b border-l h-64">
         <div
@@ -122,7 +122,7 @@
         
       </div>
       <button
-        @click="sell = null"
+        @click="selectedTicker = null"
         type="button"
         class="absolute top-0 right-0"
       >
@@ -163,7 +163,7 @@ export default {
         return{
           inputValue: '',
           tickers: [],
-          sell: null,
+          selectedTicker: null,
           graphics: [],
           recurringTicker: null,
           show: null,
@@ -175,27 +175,23 @@ export default {
      },
      created() {
       const tickersData = localStorage.getItem('cryptonomicon-list');
-
-      if(tickersData) {
-        this.tickers = JSON.parse(tickersData);
-        this.tickers.forEach(ticker => {
-          this.subscribeToUpdates(ticker.name);
-        })
-      }
+        if(tickersData) {
+          this.tickers = JSON.parse(tickersData);
+          this.tickers.forEach(ticker => {
+            this.subscribeToUpdates(ticker.name);
+          })
+        }
      },
      methods: {
       filteredTickers() {
         const start = (this.page - 1) * 6;
         const end = this.page * 6;
-
-      const filteredTickers = this.tickers.filter(ticker =>
-        ticker.name.includes(this.filter)
-      );
+        const filteredTickers = this.tickers.filter(ticker =>
+          ticker.name.includes(this.filter)
+        );
       
-      this.nextPage = filteredTickers.length > end;
-      console.log(filteredTickers.length, end)
-      return filteredTickers.slice(start, end);
-
+        this.nextPage = filteredTickers.length > end;
+        return filteredTickers.slice(start, end);
       },
       subscribeToUpdates(tickerName) {
         setInterval(async () => {
@@ -203,13 +199,13 @@ export default {
               );
               const data = await f.json();
               
-              this.tickers.find(item => item.name === tickerName).price = 
+              this.tickers.find(item => item.name === tickerName).price =
               data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
 
-              if(this.sell?.name === tickerName){
+
+              if(this.selectedTicker?.name === tickerName){
                 this.graphics.push(data.USD);
               }
-
               if(!this.tickers.find(item => item.name.toUpperCase().toLowerCase() === this.inputValue.toUpperCase().toLowerCase())){
                 this.recurringTicker = false;
                 document.querySelector('.my-btn').disabled = false;
@@ -225,9 +221,10 @@ export default {
             name: this.inputValue,
             price: '-'
           };
-          this.tickers.push(newTicker);
+          
+          
+          this.tickers = [...this.tickers, newTicker];
 
-          localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
           this.subscribeToUpdates(newTicker.name);
           
           this.filter = '';
@@ -235,16 +232,24 @@ export default {
         },
         delTicker(ticker) {
           this.tickers = this.tickers.filter(item => item.id !== ticker.id);
+          if (this.selectedTicker === ticker) {
+                this.selectedTicker = null;
+          }
         },
         normilizeGraph(){
           const maxValue = Math.max(...this.graphics);
           const minValue = Math.min(...this.graphics);
+
+           if (maxValue === minValue) {
+            return this.graphics.map(() => 50);
+          }
+
           return this.graphics.map(
             price => 5 + ((price - minValue) * 95) / (maxValue - minValue) 
           );
         },
         checkGraphics(ticker) {
-          this.sell = ticker;
+          this.selectedTicker = ticker;
           this.graphics = [];
         },
         addNewTicker(coin) {
@@ -262,11 +267,11 @@ export default {
                 this.tickers.find(item => item.name === newTicker.name).price = 
                 data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
 
-                if(this.sell?.name === newTicker.name){
+                if(this.selectedTicker?.name === newTicker.name){
                   this.graphics.push(data.USD);
                 }
 
-                // if(!this.tickers.find(item => item.name.toUpperCase().toLowerCase() === newTicker.name) &&
+                 // if(!this.tickers.find(item => item.name.toUpperCase().toLowerCase() === newTicker.name) &&
                 // !this.coinsList.find(item => item.name === newTicker.name)){
                 //   this.recurringTicker = false;
                   
@@ -274,12 +279,21 @@ export default {
                 //   this.recurringTicker = true;
                 //   document.querySelector('.my-btn').disabled = false;
                 // }
+                
+                if(this.tickers.splice(Infinity, 0, ...this.coinsList.filter(item => item.name))){
+                    this.recurringTicker = true;
+                }else{
+                  this.recurringTicker = false;
+                }
               }, 1000)
             this.inputValue = '';
             this.show = false;
         },
       },
       watch: {
+        tickers() {
+          localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
+        },
         filter() {
           this.page = 1;
           window.history.pushState(
@@ -295,13 +309,11 @@ export default {
             `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
           );
         }
-
       },
       computed:{
         async allCoins() {
             const response = await axios.get('https://min-api.cryptocompare.com/data/all/coinlist')
             const res = response.data.Data;
-
             this.coinsList = Object.entries(res).map(([name, obj]) => ({name, ...obj}));
             
             console.log(this.coinsList);
@@ -325,10 +337,7 @@ export default {
           // }
     }
     
-
-
 </script>
-
 <style src="./app.css">
 
 </style>
