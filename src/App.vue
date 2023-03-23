@@ -2,7 +2,7 @@
    <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
   <div class="container">
     <div class="w-full my-4"></div>
-    <section>
+    <form @submit.prevent="addTicker">
       <div class="flex">
         <div class="max-w-xs">
           <label for="wallet" class="block text-sm font-medium text-gray-700"
@@ -10,9 +10,8 @@
           >
           <div class="mt-1 relative rounded-md shadow-md">
             <input
+              required
               v-model="inputValue"
-              @focus="this.show = true"
-              
               type="text"
               name="wallet"
               id="wallet"
@@ -20,7 +19,6 @@
               placeholder="Например DOGE"
             />
           </div>
-          
           <div v-if="show" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
             <span 
             @click="addNewTicker(coin)"
@@ -34,9 +32,10 @@
         </div>
       </div>
       <button
-        @click="addTicker"
-        type="button"
-        class=" my-btn my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+        
+        type="submit"
+        id="button"
+        class="my-btn my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
       >
         <svg
           class="-ml-0.5 mr-2 h-6 w-6"
@@ -52,7 +51,7 @@
         </svg>
         Добавить
       </button>
-    </section>
+    </form>
     <template v-if="tickers.length">
       <hr class="w-full border-t border-gray-600 my-4" />
       <div>
@@ -214,6 +213,12 @@ export default {
                 this.recurringTicker = true;
                 document.querySelector('.my-btn').disabled = true;
               }
+
+              if(this.inputValue.length >= 1) {
+                this.show = true;
+              }else{
+                this.show = false;
+              }
             }, 3000)
       },
         addTicker() {
@@ -226,6 +231,7 @@ export default {
           this.tickers = [...this.tickers, newTicker];
 
           this.subscribeToUpdates(newTicker.name);
+          
           
           this.filter = '';
           this.inputValue = '';
